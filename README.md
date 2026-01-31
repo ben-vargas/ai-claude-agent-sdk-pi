@@ -77,42 +77,28 @@ Any extra tools registered in pi are exposed to Claude Code via an in-process MC
 
 The provider automatically maps these back to the pi tool name (e.g. `subagent`).
 
-## System Prompt Append (enabled by default)
+## Context loading
 
-By default, the provider **appends extra instructions** (AGENTS.md + skills block when available) using Claude Code’s preset prompt. This is **enabled by default**; set `appendSystemPrompt: false` to disable.
+1) **Append to system prompt (Default)**
+   - Uses **AGENTS.md + skills** from pi and appends to Claude Code’s preset prompt.
+   - No extra config needed.
 
-```
-systemPrompt: { type: "preset", preset: "claude_code", append: "..." }
-```
+2) **Use Claude Code’s dir (Recommended)**
+   - Set `appendSystemPrompt: false` so Claude Code loads its own resources.
+   - It will look for `~/.claude/skills/` and `~/.claude/CLAUDE.md` (and project `.claude/`).
+   - You can symlink your **pi skills** and **AGENTS.md** there.
 
-### Disable system prompt append
+   **Config:**
+   ```json
+   {
+     "claudeAgentSdkProvider": {
+       "appendSystemPrompt": false
+     }
+   }
+   ```
 
-We suggest you to use ~/.claude dir for skills and your agent context like CLAUD.md, because that's what agent-sdk supports by default. Although for parity with other providers it appends skills + agents to your context.
 
-To disable appending entirely, set in **global** or **project** settings:
-
-**Global**: `~/.pi/agent/settings.json`
-**Project**: `./.pi/settings.json`
-
-```json
-{
-  "claudeAgentSdkProvider": {
-    "appendSystemPrompt": false
-  }
-}
-```
-
-### AGENTS.md resolution
-
-Default resolution order:
-1) `AGENTS.md` walking up from the current working directory
-2) `~/.pi/agent/AGENTS.md`
-
-## Skills Location Aliases
-
-To avoid leaking internal paths in the skills block, skill locations are rewritten before being sent to Claude Code:
-
-- `~/.pi/agent/skills/...` → `~/.claude/skills/...`
-- `.pi/skills/...` → `.claude/skills/...`
-
-When Claude Code calls `Read/Edit/Write/Grep/Glob` using those aliases, the provider maps them back to the real paths.
+   ```bash
+   ln -s ~/.pi/agent/AGENTS.md ~/.claude/CLAUDE.md
+   ln -s ~/.pi/agent/skills ~/.claude/skills
+   ```

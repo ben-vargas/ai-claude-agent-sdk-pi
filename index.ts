@@ -1,6 +1,6 @@
 import { createAssistantMessageEventStream, getModels, type AssistantMessage, type AssistantMessageEventStream, type Context, type Model, type SimpleStreamOptions, type Tool } from "@mariozechner/pi-ai";
 import { AuthStorage, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { createSdkMcpServer, query, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import { createSdkMcpServer, query, type SDKMessage, type SettingSource } from "@anthropic-ai/claude-agent-sdk";
 import { pascalCase } from "change-case";
 import { existsSync, readFileSync } from "fs";
 import { homedir } from "os";
@@ -78,12 +78,12 @@ function contentToText(
 	content:
 		| string
 		| Array<{
-				type: string;
-				text?: string;
-				thinking?: string;
-				name?: string;
-				arguments?: Record<string, unknown>;
-			}>,
+			type: string;
+			text?: string;
+			thinking?: string;
+			name?: string;
+			arguments?: Record<string, unknown>;
+		}>,
 	customToolNameToSdk?: Map<string, string>,
 ): string {
 	if (typeof content === "string") return content;
@@ -453,13 +453,13 @@ function streamClaudeAgentSdk(model: Model<any>, context: Context, options?: Sim
 			| { type: "text"; text: string; index: number }
 			| { type: "thinking"; thinking: string; thinkingSignature?: string; index: number }
 			| {
-					type: "toolCall";
-					id: string;
-					name: string;
-					arguments: Record<string, unknown>;
-					partialJson: string;
-					index: number;
-				}
+				type: "toolCall";
+				id: string;
+				name: string;
+				arguments: Record<string, unknown>;
+				partialJson: string;
+				index: number;
+			}
 		>;
 
 		let started = false;
@@ -491,6 +491,7 @@ function streamClaudeAgentSdk(model: Model<any>, context: Context, options?: Sim
 			const systemPromptAppend = appendParts.length > 0 ? appendParts.join("\n\n") : undefined;
 			const allowSkillAliasRewrite = Boolean(skillsAppend);
 
+			const settingSources: SettingSource[] | undefined = appendSystemPrompt ? undefined : ["user", "project"];
 			const queryOptions: NonNullable<Parameters<typeof query>[0]["options"]> = {
 				cwd: process.cwd(),
 				abortController,
@@ -505,6 +506,7 @@ function streamClaudeAgentSdk(model: Model<any>, context: Context, options?: Sim
 				...(systemPromptAppend
 					? { systemPrompt: { type: "preset", preset: "claude_code", append: systemPromptAppend } }
 					: {}),
+				...(settingSources ? { settingSources } : {}),
 				...(mcpServers ? { mcpServers } : {}),
 			};
 
