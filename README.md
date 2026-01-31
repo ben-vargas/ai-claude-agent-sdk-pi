@@ -77,17 +77,19 @@ Any extra tools registered in pi are exposed to Claude Code via an in-process MC
 
 The provider automatically maps these back to the pi tool name (e.g. `subagent`).
 
-## Skills Append
+## System Prompt Append (enabled by default)
 
-By default, the provider **does not replace** Claude Code’s system prompt. It **appends only the skills block** (if any) using Claude Code’s preset prompt:
+By default, the provider **appends extra instructions** (AGENTS.md + skills block when available) using Claude Code’s preset prompt. This is **enabled by default**; set `appendSystemPrompt: false` to disable.
 
 ```
-systemPrompt: { type: "preset", preset: "claude_code", append: "...skills block..." }
+systemPrompt: { type: "preset", preset: "claude_code", append: "..." }
 ```
 
-### Disable skills append
+### Disable system prompt append
 
-To disable skills appending entirely, set in **global** or **project** settings:
+We suggest you to use ~/.claude dir for skills and your agent context like CLAUD.md, because that's what agent-sdk supports by default. Although for parity with other providers it appends skills + agents to your context.
+
+To disable appending entirely, set in **global** or **project** settings:
 
 **Global**: `~/.pi/agent/settings.json`
 **Project**: `./.pi/settings.json`
@@ -95,10 +97,16 @@ To disable skills appending entirely, set in **global** or **project** settings:
 ```json
 {
   "claudeAgentSdkProvider": {
-    "disableSkillsAppend": true
+    "appendSystemPrompt": false
   }
 }
 ```
+
+### AGENTS.md resolution
+
+Default resolution order:
+1) `AGENTS.md` walking up from the current working directory
+2) `~/.pi/agent/AGENTS.md`
 
 ## Skills Location Aliases
 

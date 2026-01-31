@@ -4,7 +4,7 @@ import { createSdkMcpServer, query, type SDKMessage } from "@anthropic-ai/claude
 import { pascalCase } from "change-case";
 import { existsSync, readFileSync } from "fs";
 import { homedir } from "os";
-import { join, relative } from "path";
+import { dirname, join, relative, resolve } from "path";
 
 const PROVIDER_ID = "claude-agent-sdk";
 
@@ -40,6 +40,7 @@ const GLOBAL_SKILLS_ROOT = join(homedir(), ".pi", "agent", "skills");
 const PROJECT_SKILLS_ROOT = join(process.cwd(), ".pi", "skills");
 const GLOBAL_SETTINGS_PATH = join(homedir(), ".pi", "agent", "settings.json");
 const PROJECT_SETTINGS_PATH = join(process.cwd(), ".pi", "settings.json");
+const GLOBAL_AGENTS_PATH = join(homedir(), ".pi", "agent", "AGENTS.md");
 
 const MODELS = getModels("anthropic").map((model) => ({
 	id: model.id,
@@ -113,7 +114,7 @@ function mapPiToolNameToSdk(name?: string, customToolNameToSdk?: Map<string, str
 }
 
 type ProviderSettings = {
-	disableSkillsAppend?: boolean;
+	appendSystemPrompt?: boolean;
 };
 
 function extractSkillsAppend(systemPrompt?: string): string | undefined {
@@ -144,8 +145,13 @@ function readSettingsFile(filePath: string): ProviderSettings {
 			(parsed["claude-agent-sdk-provider"] as Record<string, unknown> | undefined) ??
 			(parsed["claudeAgentSdk"] as Record<string, unknown> | undefined);
 		if (!settingsBlock || typeof settingsBlock !== "object") return {};
+		const appendSystemPrompt =
+			typeof settingsBlock["appendSystemPrompt"] === "boolean"
+				? settingsBlock["appendSystemPrompt"]
+				: undefined;
+		const legacyDisable = settingsBlock["disableSkillsAppend"] === true || settingsBlock["disableAgentsAppend"] === true;
 		return {
-			disableSkillsAppend: settingsBlock["disableSkillsAppend"] === true,
+			appendSystemPrompt: appendSystemPrompt ?? (legacyDisable ? false : undefined),
 		};
 	} catch {
 		return {};
@@ -164,6 +170,47 @@ function rewriteSkillsLocations(skillsBlock: string): string {
 		}
 		return `<location>${rewritten}</location>`;
 	});
+}
+
+function resolveAgentsMdPath(): string | undefined {
+	const fromCwd = findAgentsMdInParents(process.cwd());
+	if (fromCwd) return fromCwd;
+	if (existsSync(GLOBAL_AGENTS_PATH)) return GLOBAL_AGENTS_PATH;
+	return undefined;
+}
+
+function findAgentsMdInParents(startDir: string): string | undefined {
+	let current = resolve(startDir);
+	while (true) {
+		const candidate = join(current, "AGENTS.md");
+		if (existsSync(candidate)) return candidate;
+		const parent = dirname(current);
+		if (parent === current) break;
+		current = parent;
+	}
+	return undefined;
+}
+
+function extractAgentsAppend(): string | undefined {
+	const agentsPath = resolveAgentsMdPath();
+	if (!agentsPath) return undefined;
+	try {
+		const content = readFileSync(agentsPath, "utf-8").trim();
+		if (!content) return undefined;
+		const sanitized = sanitizeAgentsContent(content);
+		return sanitized.length > 0 ? `# CLAUDE.md\n\n${sanitized}` : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+function sanitizeAgentsContent(content: string): string {
+	let sanitized = content;
+	sanitized = sanitized.replace(/~\/\.pi\b/gi, "~/.claude");
+	sanitized = sanitized.replace(/(^|[\s'"`])\.pi\//g, "$1.claude/");
+	sanitized = sanitized.replace(/\b\.pi\b/gi, ".claude");
+	sanitized = sanitized.replace(/\bpi\b/gi, "environment");
+	return sanitized;
 }
 
 function rewriteSkillAliasPath(pathValue: unknown): unknown {
@@ -437,8 +484,12 @@ function streamClaudeAgentSdk(model: Model<any>, context: Context, options?: Sim
 
 			const mcpServers = buildCustomToolServers(customTools);
 			const providerSettings = loadProviderSettings();
-			const skillsAppend = providerSettings.disableSkillsAppend ? undefined : extractSkillsAppend(context.systemPrompt);
-			const allowSkillAliasRewrite = !providerSettings.disableSkillsAppend;
+			const appendSystemPrompt = providerSettings.appendSystemPrompt !== false;
+			const agentsAppend = appendSystemPrompt ? extractAgentsAppend() : undefined;
+			const skillsAppend = appendSystemPrompt ? extractSkillsAppend(context.systemPrompt) : undefined;
+			const appendParts = [agentsAppend, skillsAppend].filter((part): part is string => Boolean(part));
+			const systemPromptAppend = appendParts.length > 0 ? appendParts.join("\n\n") : undefined;
+			const allowSkillAliasRewrite = Boolean(skillsAppend);
 
 			const queryOptions: NonNullable<Parameters<typeof query>[0]["options"]> = {
 				cwd: process.cwd(),
@@ -451,8 +502,8 @@ function streamClaudeAgentSdk(model: Model<any>, context: Context, options?: Sim
 					message: TOOL_EXECUTION_DENIED_MESSAGE,
 				}),
 				env,
-				...(skillsAppend
-					? { systemPrompt: { type: "preset", preset: "claude_code", append: skillsAppend } }
+				...(systemPromptAppend
+					? { systemPrompt: { type: "preset", preset: "claude_code", append: systemPromptAppend } }
 					: {}),
 				...(mcpServers ? { mcpServers } : {}),
 			};
