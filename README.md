@@ -12,10 +12,15 @@ This extension registers a custom provider that routes LLM calls through the **C
 
 ## Setup
 
-1) Install the extension globally (already done):
+1) Install the extension globally:
 
 ```
-~/.pi/agent/extensions/claude-agent-sdk-provider/
+pi install git:github.com/prateekmedia/claude-agent-sdk-pi
+```
+
+Installed path (for git installs, pi places it under):
+```
+~/.pi/agent/git/github.com/prateekmedia/claude-agent-sdk-pi/
 ```
 
 2) **Authenticate** (choose one):
@@ -72,7 +77,7 @@ Any extra tools registered in pi are exposed to Claude Code via an in-process MC
 
 The provider automatically maps these back to the pi tool name (e.g. `subagent`).
 
-## Skills Append (optional)
+## Skills Append
 
 By default, the provider **does not replace** Claude Code’s system prompt. It **appends only the skills block** (if any) using Claude Code’s preset prompt:
 
@@ -103,12 +108,3 @@ To avoid leaking internal paths in the skills block, skill locations are rewritt
 - `.pi/skills/...` → `.claude/skills/...`
 
 When Claude Code calls `Read/Edit/Write/Grep/Glob` using those aliases, the provider maps them back to the real paths.
-
-## Notes
-
-- If Claude Code still executes a tool, ensure you’re using the `claude-agent-sdk` provider and reload after changes.
-- Skills must have valid YAML frontmatter in `SKILL.md` (quoted `description` if it contains `:`).
-
----
-
-If you want additional settings (e.g., include project context or custom prompt sections), let me know.
