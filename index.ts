@@ -53,7 +53,7 @@ const MODELS = getModels("anthropic").map((model) => ({
 	maxTokens: model.maxTokens,
 }));
 
-const DEFAULT_CACHE_CONTROL: CacheControlEphemeral = { type: "ephemeral", ttl: "1h" };
+const DEFAULT_CACHE_CONTROL: CacheControlEphemeral = { type: "ephemeral", ttl: "5m" };
 
 function buildPromptBlocks(context: Context, customToolNameToSdk?: Map<string, string>): ContentBlockParam[] {
 	const blocks: ContentBlockParam[] = [];
