@@ -546,9 +546,14 @@ function streamClaudeAgentSdk(model: Model<any>, context: Context, options?: Sim
 		};
 
 		const abortController = new AbortController();
-		const onAbort = () => abortController.abort();
+		let wasAborted = false;
+		const onAbort = () => {
+			wasAborted = true;
+			abortController.abort();
+			sdkQuery?.close();
+		};
 		if (options?.signal) {
-			if (options.signal.aborted) abortController.abort();
+			if (options.signal.aborted) onAbort();
 			else options.signal.addEventListener("abort", onAbort, { once: true });
 		}
 
@@ -788,6 +793,14 @@ function streamClaudeAgentSdk(model: Model<any>, context: Context, options?: Sim
 				if (shouldStopEarly) {
 					break;
 				}
+			}
+
+			if (wasAborted || abortController.signal.aborted || options?.signal?.aborted) {
+				output.stopReason = "aborted";
+				output.errorMessage = "Operation aborted";
+				stream.push({ type: "error", reason: "aborted", error: output });
+				stream.end();
+				return;
 			}
 
 			stream.push({
