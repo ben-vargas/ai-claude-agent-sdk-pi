@@ -53,11 +53,12 @@ const MODELS = getModels("anthropic").map((model) => ({
 	maxTokens: model.maxTokens,
 }));
 
-const DEFAULT_CACHE_CONTROL: CacheControlEphemeral = { type: "ephemeral", ttl: "5m" };
 
-function buildPromptBlocks(context: Context, customToolNameToSdk?: Map<string, string>): ContentBlockParam[] {
+function buildPromptBlocks(
+	context: Context,
+	customToolNameToSdk: Map<string, string> | undefined,
+): ContentBlockParam[] {
 	const blocks: ContentBlockParam[] = [];
-	const messageEndIndexes: number[] = [];
 
 	const pushText = (text: string) => {
 		blocks.push({ type: "text", text });
@@ -121,7 +122,6 @@ function buildPromptBlocks(context: Context, customToolNameToSdk?: Map<string, s
 			if (!hasText) {
 				pushText("(see attached image)");
 			}
-			messageEndIndexes.push(blocks.length - 1);
 			continue;
 		}
 
@@ -131,7 +131,6 @@ function buildPromptBlocks(context: Context, customToolNameToSdk?: Map<string, s
 			if (text.length > 0) {
 				pushText(text);
 			}
-			messageEndIndexes.push(blocks.length - 1);
 			continue;
 		}
 
@@ -142,19 +141,10 @@ function buildPromptBlocks(context: Context, customToolNameToSdk?: Map<string, s
 			if (!hasText) {
 				pushText("(see attached image)");
 			}
-			messageEndIndexes.push(blocks.length - 1);
 		}
 	}
 
 	if (!blocks.length) return [{ type: "text", text: "" }];
-
-	const cacheTargets = messageEndIndexes.slice(-2);
-	for (const index of cacheTargets) {
-		const block = blocks[index];
-		if (block && (block.type === "text" || block.type === "image")) {
-			(block as TextBlockParam | ImageBlockParam).cache_control = DEFAULT_CACHE_CONTROL;
-		}
-	}
 
 	return blocks;
 }
@@ -600,9 +590,10 @@ function streamClaudeAgentSdk(model: Model<any>, context: Context, options?: Sim
 			const systemPromptAppend = appendParts.length > 0 ? appendParts.join("\n\n") : undefined;
 			const allowSkillAliasRewrite = Boolean(skillsAppend);
 
+			const cwd = (options as { cwd?: string } | undefined)?.cwd ?? process.cwd();
 			const settingSources: SettingSource[] | undefined = appendSystemPrompt ? undefined : ["user", "project"];
 			const queryOptions: NonNullable<Parameters<typeof query>[0]["options"]> = {
-				cwd: process.cwd(),
+				cwd,
 				abortController,
 				tools: sdkTools,
 				permissionMode: "dontAsk",
