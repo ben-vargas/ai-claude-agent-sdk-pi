@@ -756,7 +756,10 @@ function buildCustomToolServers(customTools: Tool[]): Record<string, ReturnType<
 	const mcpTools = customTools.map((tool) => ({
 		name: tool.name,
 		description: tool.description,
-		inputSchema: tool.parameters as unknown,
+		// Pass empty raw shape instead of JSON Schema — the SDK (>=0.2.107)
+		// validates inputSchema as Zod or raw shape and rejects plain JSON Schema.
+		// These tool stubs are always denied anyway (pi executes tools, not the SDK).
+		inputSchema: {},
 		handler: async () => ({
 			content: [{ type: "text", text: TOOL_EXECUTION_DENIED_MESSAGE }],
 			isError: true,
