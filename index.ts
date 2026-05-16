@@ -1,5 +1,5 @@
-import { calculateCost, createAssistantMessageEventStream, getModels, type AssistantMessage, type AssistantMessageEventStream, type Context, type ImageContent, type Model, type SimpleStreamOptions, type Tool } from "@mariozechner/pi-ai";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { calculateCost, createAssistantMessageEventStream, getModels, type AssistantMessage, type AssistantMessageEventStream, type Context, type ImageContent, type Model, type SimpleStreamOptions, type Tool } from "@earendil-works/pi-ai";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createSdkMcpServer, query, type EffortLevel, type SDKMessage, type SDKUserMessage, type SettingSource, type ThinkingConfig } from "@anthropic-ai/claude-agent-sdk";
 import type { Base64ImageSource, CacheControlEphemeral, ContentBlockParam, ImageBlockParam, MessageParam, TextBlockParam } from "@anthropic-ai/sdk/resources";
 import { pascalCase } from "change-case";
@@ -277,7 +277,7 @@ function buildToolWatchPromptNote(
 		const sdkToolName = mapPiToolNameToSdk(pending.toolName, customToolNameToSdk);
 		parts.push(
 			`TOOL RESULT (missing execution ${sdkToolName}, id=${toolCallId}, status=error):\n` +
-				"Tool execution did not complete or its result was not observed. Do not guess. Call the tool again.",
+			"Tool execution did not complete or its result was not observed. Do not guess. Call the tool again.",
 		);
 	}
 
@@ -330,11 +330,11 @@ function buildPromptBlocks(
 		content:
 			| string
 			| Array<{
-					type: string;
-					text?: string;
-					data?: string;
-					mimeType?: string;
-				}>,
+				type: string;
+				text?: string;
+				data?: string;
+				mimeType?: string;
+			}>,
 	): boolean => {
 		if (typeof content === "string") {
 			if (content.length > 0) {
@@ -514,10 +514,10 @@ function readSettingsFile(filePath: string): ProviderSettings {
 		const settingSourcesRaw = settingsBlock["settingSources"];
 		const settingSources =
 			Array.isArray(settingSourcesRaw) &&
-			settingSourcesRaw.every(
-				(value) =>
-					typeof value === "string" && (value === "user" || value === "project" || value === "local"),
-			)
+				settingSourcesRaw.every(
+					(value) =>
+						typeof value === "string" && (value === "user" || value === "project" || value === "local"),
+				)
 				? (settingSourcesRaw as SettingSource[])
 				: undefined;
 
